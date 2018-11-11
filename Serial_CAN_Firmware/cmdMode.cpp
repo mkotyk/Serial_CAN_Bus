@@ -170,7 +170,7 @@ static Result cmd_set_serial_rate(Context *ctx, unsigned char *args) {
 /** End of Commands **/
 
 static bool is_line_complete(Context *ctx) {
-    return *ctx->head == '\n';
+    return *ctx->head == '\n' || *ctx->head == '\r';
 }
 
 static bool is_offline_seq(Context *ctx) {
@@ -187,9 +187,9 @@ static void process_command(Context *ctx) {
 
         Result result = OK;
 
-        if (ctx->mode == DATA_MODE && ctx->buffer[0] == '+' && ctx->buffer[1] == '+') {
+        if ((ctx->mode == DATA_MODE) && (ctx->buffer[0] == '+') && (ctx->buffer[1] == '+')) {
             ctx->mode = SETTINGS_MODE;
-        } else if (ctx->mode == SETTINGS_MODE && toupper(ctx->buffer[0]) == 'A' && toupper(ctx->buffer[1] == 'T')) {
+        } else if ((ctx->mode == SETTINGS_MODE) && (toupper(ctx->buffer[0]) == 'A') && (toupper(ctx->buffer[1]) == 'T')) {
             switch(toupper(ctx->buffer[2])) {
                 case 'I': // Information
                     ctx->serial->println("Serial CAN V2.0");
@@ -199,62 +199,68 @@ static void process_command(Context *ctx) {
                     return;
                 case '+':
                     // Extended commands
-                    switch(toupper(ctx->buffer[2])) {
-                        get_cmd = BUF_LEN(ctx) < 4 || ctx->buffer[3] == '?';
-                        if (!get_cmd && BUF_LEN(ctx) > 4) {
-                            args = &ctx->buffer[4];
-                        }
+                    get_cmd = (BUF_LEN(ctx) == 4) || (ctx->buffer[4] == '?');
+                    if (!get_cmd && BUF_LEN(ctx) > 4) {
+                        args = &ctx->buffer[5];
+                    }
+                    switch(toupper(ctx->buffer[3])) {
                         case 'B':
-                        ctx->send_can = &binary_send_can;
-                        ctx->recv_can = &binary_recv_can;
-                        ctx->serial->println("Binary mode selected.");
-                        break;
+                            ctx->send_can = &binary_send_can;
+                            ctx->recv_can = &binary_recv_can;
+                            ctx->serial->println("Binary mode selected.");
+                            break;
                         case 'C': // CAN Bus rate
-                        if (get_cmd) {
-                            cmd_get_can_rate(ctx);
-                        } else {
-                            result = cmd_set_can_rate(ctx, args);
-                        }
-                        break;
+                            if (get_cmd) {
+                                cmd_get_can_rate(ctx);
+                            } else {
+                                result = cmd_set_can_rate(ctx, args);
+                            }
+                            break;
                         case 'F': // Filter
-                        if (get_cmd) {
-                            cmd_get_filters(ctx);
-                        } else {
-                            result = cmd_set_filters(ctx, args);
-                        }
-                        break;
+                            if (get_cmd) {
+                                cmd_get_filters(ctx);
+                            } else {
+                                result = cmd_set_filters(ctx, args);
+                            }
+                            break;
                         case 'H':
-                        ctx->send_can = &hex_send_can;
-                        ctx->recv_can = &hex_recv_can;
-                        ctx->serial->println("Hex mode selected.");
-                        break;
+                            ctx->send_can = &hex_send_can;
+                            ctx->recv_can = &hex_recv_can;
+                            ctx->serial->println("Hex mode selected.");
+                            break;
                         case 'M': // Mask
-                        if (get_cmd) {
-                            cmd_get_masks(ctx);
-                        } else {
-                            result = cmd_set_masks(ctx, args);
-                        }
-                        break;
+                            if (get_cmd) {
+                                cmd_get_masks(ctx);
+                            } else {
+                                result = cmd_set_masks(ctx, args);
+                            }
+                            break;
                         case 'S': // Serial Baud rate
-                        if (get_cmd) {
-                            cmd_get_serial_rate(ctx);
-                        } else {
-                            result = cmd_set_serial_rate(ctx, args);
-                        }
-                        break;
+                            if (get_cmd) {
+                                cmd_get_serial_rate(ctx);
+                            } else {
+                                result = cmd_set_serial_rate(ctx, args);
+                            }
+                            break;
+                        case '\0':
+                            break;
                         default:
-                        result = ERROR;
-                        break;
+                            result = ERROR;
+                            break;
                     }
                     break;
+                case '\0':
+                  break;
                 default:
                     result = ERROR;
                     break;
             }
         } else if (ctx->mode == DATA_MODE) {
             ctx->send_can(ctx);
+            return;
         }
 
+        /* Display result */
         if (result == OK) {
             ctx->serial->println("OK");
             digitalWrite(LED_INDICATOR, HIGH);
@@ -286,8 +292,7 @@ void binary_send_can(Context* ctx)
     if(14 != BUF_LEN(ctx)) return;
 
     unsigned long id  = 0;
-    for(int i=0; i<4; i++)
-    {
+    for(int i = 0; i < 4; i++) {
         id <<= 8;
         id += ctx->buffer[i];
     }
@@ -303,8 +308,7 @@ void binary_recv_can(Context* ctx)
     unsigned char len = 0;
     unsigned char buf[8];
 
-    if(CAN_MSGAVAIL == ctx->can->checkReceive())              // check if data coming
-    {
+    if(CAN_MSGAVAIL == ctx->can->checkReceive()) {
         ctx->can->readMsgBuf(&len, buf);                      // read data,  len: data length, buf: data buf
         unsigned long id = ctx->can->getCanId();
         write_word(id, ctx, serial_write);
@@ -351,8 +355,7 @@ void hex_recv_can(Context* ctx)
     unsigned char len = 0;
     unsigned char buf[8];
 
-    if(CAN_MSGAVAIL == ctx->can->checkReceive())              // check if data coming
-    {
+    if(CAN_MSGAVAIL == ctx->can->checkReceive()) {
         ctx->can->readMsgBuf(&len, buf);                      // read data,  len: data length, buf: data buf
         unsigned long id = ctx->can->getCanId();
         ctx->serial->print(id, HEX);

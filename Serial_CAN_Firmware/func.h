@@ -6,7 +6,7 @@
 // EEPROM
 #define EEPADDR_SET     (0)
 #define EEPADDR_SERIAL  (1)
-#define SERIAL_DIVISOR  1200
+#define SERIAL_DIVISOR  1200L
 #define EEPADDR_CANRATE (2)
 
 #define EEPADDR_MASK0   (10)

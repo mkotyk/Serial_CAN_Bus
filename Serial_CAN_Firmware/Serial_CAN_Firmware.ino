@@ -22,21 +22,20 @@ void sys_init(Context *ctx)
 {
     pinMode(LED_INDICATOR, OUTPUT);
 
-    if(EEPROM.read(EEPADDR_SET) != 0x55) {
+    if(eeprom_read(EEPADDR_SET, 0) != 0x55) {
         // Initialize EEPROM
-        EEPROM.write(EEPADDR_SET, 0x55);
-        EEPROM.write(EEPADDR_SERIAL, 9600 / SERIAL_DIVISOR);
-        EEPROM.write(EEPADDR_CANRATE, 16);
+        eeprom_write(0x55, EEPADDR_SET, 0);
+        eeprom_write(115200L / SERIAL_DIVISOR, EEPADDR_SERIAL, 0);
+        eeprom_write(16, EEPADDR_CANRATE, 0); // 500Kbps
 
-        for(int i=10; i<90; i++)
-        {
-            EEPROM.write(i, 0);
+        for(int i=10; i<90; i++) {
+            eeprom_write(0, i, 0);
         }
     }
 
-    ctx->serial->begin(EEPROM.read(EEPADDR_SERIAL) * SERIAL_DIVISOR);
+    ctx->serial->begin((long) eeprom_read(EEPADDR_SERIAL, 0) * SERIAL_DIVISOR);
 
-    while (CAN_OK != ctx->can->begin(EEPROM.read(EEPADDR_CANRATE)))    // init can bus : baudrate = 500k
+    while (CAN_OK != ctx->can->begin(eeprom_read(EEPADDR_CANRATE, 0)))    // init can bus : baudrate = 500k
     {
         ctx->serial->println("CAN BUS Shield init fail");
         ctx->serial->println(" Init CAN BUS Shield again");
@@ -47,27 +46,28 @@ void sys_init(Context *ctx)
     /*
      * set mask, set both the mask to 0x3ff
      */
-    ctx->can->init_Mask(0, EEPROM.read(EEPADDR_MASK0),
+    ctx->can->init_Mask(0, eeprom_read(EEPADDR_MASK0, 0),
                         read_word(EEPADDR_MASK0 + 1, eeprom_read));
-    ctx->can->init_Mask(1, EEPROM.read(EEPADDR_MASK1),
+    ctx->can->init_Mask(1, eeprom_read(EEPADDR_MASK1, 0),
                         read_word(EEPADDR_MASK1 + 1, eeprom_read));
 
     /*
      * set filter, we can receive id from 0x04 ~ 0x09
      */
-    ctx->can->init_Filt(0, EEPROM.read(EEPADDR_FILT0),
+    ctx->can->init_Filt(0, eeprom_read(EEPADDR_FILT0, 0),
                         read_word(EEPADDR_FILT0 + 1, eeprom_read));
-    ctx->can->init_Filt(1, EEPROM.read(EEPADDR_FILT1),
+    ctx->can->init_Filt(1, eeprom_read(EEPADDR_FILT1, 0),
                         read_word(EEPADDR_FILT1 + 1, eeprom_read));
-    ctx->can->init_Filt(2, EEPROM.read(EEPADDR_FILT2),
+    ctx->can->init_Filt(2, eeprom_read(EEPADDR_FILT2, 0),
                         read_word(EEPADDR_FILT2 + 1, eeprom_read));
-    ctx->can->init_Filt(3, EEPROM.read(EEPADDR_FILT3),
+    ctx->can->init_Filt(3, eeprom_read(EEPADDR_FILT3, 0),
                         read_word(EEPADDR_FILT3 + 1, eeprom_read));
-    ctx->can->init_Filt(4, EEPROM.read(EEPADDR_FILT4),
+    ctx->can->init_Filt(4, eeprom_read(EEPADDR_FILT4, 0),
                         read_word(EEPADDR_FILT4 + 1, eeprom_read));
-    ctx->can->init_Filt(5, EEPROM.read(EEPADDR_FILT5),
+    ctx->can->init_Filt(5, eeprom_read(EEPADDR_FILT5, 0),
                         read_word(EEPADDR_FILT5 + 1, eeprom_read));
 
+    cmd_get_serial_rate(ctx);
     cmd_get_can_rate(ctx);
     cmd_get_masks(ctx);
     cmd_get_filters(ctx);
@@ -79,13 +79,13 @@ void sys_init(Context *ctx)
 
 void setup()
 {
-  context.head = context.buffer;
-  context.serial = &Serial;
-  context.can = &CAN;
-  context.send_can = &hex_send_can;
-  context.recv_can = &hex_recv_can;
+    context.head = context.buffer;
+    context.serial = &Serial;
+    context.can = &CAN;
+    context.send_can = &hex_send_can;
+    context.recv_can = &hex_recv_can;
 
-  sys_init(&context);
+    sys_init(&context);
 }
 
 void loop()
