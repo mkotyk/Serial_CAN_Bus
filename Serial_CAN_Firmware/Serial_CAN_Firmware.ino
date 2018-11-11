@@ -25,7 +25,7 @@ void sys_init(Context *ctx)
     if(EEPROM.read(EEPADDR_SET) != 0x55) {
         // Initialize EEPROM
         EEPROM.write(EEPADDR_SET, 0x55);
-        EEPROM.write(EEPADDR_SERIAL, 0);
+        EEPROM.write(EEPADDR_SERIAL, 9600 / SERIAL_DIVISOR);
         EEPROM.write(EEPADDR_CANRATE, 16);
 
         for(int i=10; i<90; i++)
@@ -82,8 +82,8 @@ void setup()
   context.head = context.buffer;
   context.serial = &Serial;
   context.can = &CAN;
-  context.send_can = &binary_send_can;
-  context.recv_can = &binary_recv_can;
+  context.send_can = &hex_send_can;
+  context.recv_can = &hex_recv_can;
 
   sys_init(&context);
 }
